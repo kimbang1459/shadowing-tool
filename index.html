@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Shadowing Tool</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<header>
+  <h1>Shadowing Tool</h1>
+  <div class="step-tabs">
+    <button class="step-tab active" data-step="setup">1 설정</button>
+    <button class="step-tab" data-step="stamp">2 타임스탬프</button>
+    <button class="step-tab" data-step="shadow">3 쉐도잉</button>
+  </div>
+</header>
+
+<main>
+
+  <!-- ══ STEP 1: 설정 ══ -->
+  <div class="step-panel active" id="panel-setup">
+
+    <!-- 음원 업로드 -->
+    <div class="card">
+      <h2>음원 파일</h2>
+      <div class="upload-area" id="audio-upload-area">
+        <div class="icon">🎵</div>
+        <p><strong>클릭하거나 파일을 끌어다 놓으세요</strong></p>
+        <p>MP3, M4A, WAV, MP4 등 지원</p>
+        <input type="file" id="audio-file-input" accept="audio/*,video/*" style="display:none" />
+      </div>
+      <div id="audio-loaded-info" style="display:none; margin-top:12px;">
+        <div class="audio-player">
+          <div class="audio-controls">
+            <button class="play-btn" id="preview-play-btn">▶</button>
+            <div class="time-display" id="preview-time">0:00 / 0:00</div>
+            <div class="speed-control">
+              <span>속도</span>
+              <input type="range" id="preview-speed" min="0.5" max="2" step="0.1" value="1" />
+              <span id="preview-speed-label">1.0x</span>
+            </div>
+          </div>
+          <div class="progress-bar-wrap" id="preview-progress-wrap">
+            <div class="progress-bar-fill" id="preview-progress-fill" style="width:0%"></div>
+          </div>
+        </div>
+        <p id="audio-file-name" style="font-size:13px; color:var(--text2);"></p>
+      </div>
+    </div>
+
+    <!-- 스크립트 입력 -->
+    <div class="card">
+      <h2>스크립트</h2>
+      <div class="label">텍스트를 붙여넣으세요. 줄바꿈 또는 마침표 기준으로 문장을 나눕니다.</div>
+      <textarea id="script-input" placeholder="여기에 영어 스크립트를 붙여넣으세요..."></textarea>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="parse-btn">문장 분리</button>
+        <button class="btn btn-secondary" id="clear-script-btn">초기화</button>
+      </div>
+    </div>
+
+    <!-- 분리된 문장 미리보기 -->
+    <div class="card" id="parsed-preview-card" style="display:none">
+      <h2>분리된 문장 <span id="sentence-count-label"></span></h2>
+      <div class="sentence-list" id="parsed-sentence-list"></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="go-stamp-btn">타임스탬프 찍기 →</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══ STEP 2: 타임스탬프 ══ -->
+  <div class="step-panel" id="panel-stamp">
+
+    <div class="card">
+      <h2>오디오 재생</h2>
+      <div class="audio-player">
+        <div class="audio-controls">
+          <button class="play-btn" id="stamp-play-btn">▶</button>
+          <div class="time-display" id="stamp-time">0:00 / 0:00</div>
+          <div class="speed-control">
+            <span>속도</span>
+            <input type="range" id="stamp-speed" min="0.5" max="2" step="0.1" value="1" />
+            <span id="stamp-speed-label">1.0x</span>
+          </div>
+        </div>
+        <div class="progress-bar-wrap" id="stamp-progress-wrap">
+          <div class="progress-bar-fill" id="stamp-progress-fill" style="width:0%"></div>
+        </div>
+      </div>
+
+      <div class="stamp-hint">
+        오디오를 재생하면서 <strong>각 문장이 시작될 때 [스페이스바]</strong>를 누르세요.<br>
+        모바일에서는 <strong>[타임스탬프 찍기]</strong> 버튼을 누르세요.
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" id="stamp-mark-btn">타임스탬프 찍기</button>
+        <button class="btn btn-secondary" id="stamp-undo-btn">↩ 되돌리기</button>
+        <button class="btn btn-secondary" id="stamp-reset-btn">전체 초기화</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>문장 목록 (<span id="stamped-count">0</span> / <span id="total-count">0</span> 완료)</h2>
+      <div class="sentence-list" id="stamp-sentence-list"></div>
+      <div class="btn-row" style="margin-top:16px;">
+        <button class="btn btn-primary" id="go-shadow-btn">쉐도잉 시작 →</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══ STEP 3: 쉐도잉 ══ -->
+  <div class="step-panel" id="panel-shadow">
+
+    <div class="card">
+      <h2>재생 설정</h2>
+      <div class="settings-row">
+        <div class="setting-item">
+          <span>반복</span>
+          <input type="number" id="repeat-count" value="3" min="1" max="20" />
+          <span>회</span>
+        </div>
+        <div class="setting-item">
+          <span>간격</span>
+          <input type="number" id="repeat-gap" value="1.5" min="0" max="10" step="0.5" />
+          <span>초</span>
+        </div>
+        <div class="setting-item">
+          <span>속도</span>
+          <input type="range" id="shadow-speed" min="0.5" max="2" step="0.1" value="1" />
+          <span id="shadow-speed-label">1.0x</span>
+        </div>
+      </div>
+
+      <div class="audio-player">
+        <div class="audio-controls">
+          <button class="play-btn" id="shadow-play-btn">▶</button>
+          <div class="time-display" id="shadow-time">0:00 / 0:00</div>
+        </div>
+        <div class="progress-bar-wrap" id="shadow-progress-wrap">
+          <div class="progress-bar-fill" id="shadow-progress-fill" style="width:0%"></div>
+        </div>
+      </div>
+
+      <div class="shadow-sentence" id="shadow-current-text">
+        문장을 선택하세요
+      </div>
+
+      <div class="repeat-dots" id="repeat-dots"></div>
+    </div>
+
+    <div class="card">
+      <h2>문장 선택</h2>
+      <div class="sentence-grid" id="shadow-sentence-grid"></div>
+    </div>
+
+  </div>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
