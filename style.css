@@ -49,7 +49,6 @@ header h1 {
 .step-tabs {
   display: flex;
   gap: 6px;
-  margin-left: auto;
 }
 
 .step-tab {
@@ -505,6 +504,78 @@ textarea:focus {
   .sentence-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* ── Header actions ── */
+.header-actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+  margin-right: 10px;
+}
+
+/* ── Timestamp markers ── */
+.progress-bar-wrap {
+  position: relative;
+  overflow: visible;
+}
+
+.stamp-bar {
+  margin-top: 22px;
+}
+
+.timestamp-marker {
+  position: absolute;
+  top: -20px;
+  transform: translateX(-50%);
+  cursor: ew-resize;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 20;
+  user-select: none;
+  touch-action: none;
+}
+
+.marker-line {
+  width: 2px;
+  height: 24px;
+  background: var(--accent2);
+  border-radius: 1px;
+  transition: background 0.15s;
+}
+
+.marker-num {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--accent2);
+  line-height: 1;
+  margin-top: 1px;
+  white-space: nowrap;
+}
+
+.timestamp-marker:hover .marker-line,
+.timestamp-marker.dragging .marker-line {
+  background: #fff;
+  width: 3px;
+}
+
+.timestamp-marker:hover .marker-num,
+.timestamp-marker.dragging .marker-num {
+  color: #fff;
+}
+
+.marker-tooltip {
+  position: absolute;
+  top: -18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 10px;
+  color: var(--text);
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 /* scrollbar */

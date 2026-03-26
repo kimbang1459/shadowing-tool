@@ -10,6 +10,11 @@
 
 <header>
   <h1>Shadowing Tool</h1>
+  <div class="header-actions">
+    <button class="btn btn-secondary btn-sm" id="save-btn">저장</button>
+    <button class="btn btn-secondary btn-sm" id="load-btn">불러오기</button>
+    <input type="file" id="load-file-input" accept=".json" style="display:none" />
+  </div>
   <div class="step-tabs">
     <button class="step-tab active" data-step="setup">1 설정</button>
     <button class="step-tab" data-step="stamp">2 타임스탬프</button>
@@ -87,7 +92,7 @@
             <span id="stamp-speed-label">1.0x</span>
           </div>
         </div>
-        <div class="progress-bar-wrap" id="stamp-progress-wrap">
+        <div class="progress-bar-wrap stamp-bar" id="stamp-progress-wrap">
           <div class="progress-bar-fill" id="stamp-progress-fill" style="width:0%"></div>
         </div>
       </div>

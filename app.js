@@ -28,6 +28,62 @@ function setAudioSrc(audioEl, url) {
   audioEl.load();
 }
 
+// ── Save / Load ───────────────────────────
+document.getElementById('save-btn').addEventListener('click', saveProject);
+document.getElementById('load-btn').addEventListener('click', () => {
+  document.getElementById('load-file-input').click();
+});
+document.getElementById('load-file-input').addEventListener('change', e => {
+  if (e.target.files[0]) loadProject(e.target.files[0]);
+  e.target.value = '';
+});
+
+function saveProject() {
+  if (state.sentences.length === 0) {
+    alert('저장할 내용이 없어요. 스크립트를 입력하고 문장 분리를 먼저 해주세요.');
+    return;
+  }
+  const data = {
+    version: 1,
+    audioFileName: state.audioBlob ? state.audioBlob.name : '',
+    sentences: state.sentences.map(s => ({ text: s.text, start: s.start, end: s.end })),
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = (data.audioFileName.replace(/\.[^.]+$/, '') || 'shadowing') + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function loadProject(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.sentences || !Array.isArray(data.sentences)) throw new Error('invalid');
+      state.sentences = data.sentences.map(s => ({
+        text:  s.text  || '',
+        start: s.start !== undefined ? s.start : null,
+        end:   s.end   !== undefined ? s.end   : null,
+      }));
+      state.currentStampIdx = state.sentences.filter(s => s.start !== null).length;
+
+      // Update script textarea
+      document.getElementById('script-input').value = state.sentences.map(s => s.text).join('\n');
+      renderParsedPreview();
+
+      const audioHint = data.audioFileName ? `\n\n음원 파일(${data.audioFileName})을 업로드해주세요.` : '';
+      alert(`불러오기 완료! ${state.sentences.length}개 문장 복원됨.${audioHint}`);
+      goToStep('setup');
+    } catch {
+      alert('올바른 저장 파일이 아니에요.');
+    }
+  };
+  reader.readAsText(file);
+}
+
 // ── Tab navigation ─────────────────────────
 document.querySelectorAll('.step-tab').forEach(tab => {
   tab.addEventListener('click', () => {
@@ -256,6 +312,100 @@ makePlayer(stampAudio, {
   speedLabel:   document.getElementById('stamp-speed-label'),
 });
 
+// ── Marker drag state ─────────────────────
+const markerDrag = { active: false, idx: -1 };
+
+document.addEventListener('mousemove', onMarkerDragMove);
+document.addEventListener('touchmove', onMarkerDragMove, { passive: false });
+document.addEventListener('mouseup',   onMarkerDragEnd);
+document.addEventListener('touchend',  onMarkerDragEnd);
+
+function onMarkerDragMove(e) {
+  if (!markerDrag.active) return;
+  if (e.cancelable) e.preventDefault();
+  const touch = e.touches ? e.touches[0] : e;
+  const wrap  = document.getElementById('stamp-progress-wrap');
+  const rect  = wrap.getBoundingClientRect();
+  let pct = (touch.clientX - rect.left) / rect.width;
+  pct = Math.max(0, Math.min(1, pct));
+  const newTime = pct * stampAudio.duration;
+  state.sentences[markerDrag.idx].start = newTime;
+  // Sync adjacent end
+  const prev = state.sentences[markerDrag.idx - 1];
+  if (prev) prev.end = newTime;
+  // Move marker visually
+  const marker = wrap.querySelector(`.timestamp-marker[data-idx="${markerDrag.idx}"]`);
+  if (marker) {
+    marker.style.left = (pct * 100) + '%';
+    const tt = marker.querySelector('.marker-tooltip');
+    if (tt) tt.textContent = fmt(newTime);
+  }
+}
+
+function onMarkerDragEnd() {
+  if (!markerDrag.active) return;
+  markerDrag.active = false;
+  const wrap = document.getElementById('stamp-progress-wrap');
+  const marker = wrap.querySelector(`.timestamp-marker[data-idx="${markerDrag.idx}"]`);
+  if (marker) {
+    marker.classList.remove('dragging');
+    const tt = marker.querySelector('.marker-tooltip');
+    if (tt) tt.remove();
+  }
+  markerDrag.idx = -1;
+  renderStampList();
+}
+
+function renderStampMarkers() {
+  const wrap = document.getElementById('stamp-progress-wrap');
+  wrap.querySelectorAll('.timestamp-marker').forEach(m => m.remove());
+  if (!stampAudio.duration) return;
+
+  state.sentences.forEach((s, i) => {
+    if (s.start === null) return;
+    const pct = (s.start / stampAudio.duration) * 100;
+
+    const marker = document.createElement('div');
+    marker.className = 'timestamp-marker';
+    marker.style.left = pct + '%';
+    marker.dataset.idx = i;
+
+    const line = document.createElement('div');
+    line.className = 'marker-line';
+
+    const num = document.createElement('div');
+    num.className = 'marker-num';
+    num.textContent = i + 1;
+
+    marker.appendChild(line);
+    marker.appendChild(num);
+
+    const startDrag = e => {
+      markerDrag.active = true;
+      markerDrag.idx    = i;
+      marker.classList.add('dragging');
+      // Show tooltip
+      const tt = document.createElement('div');
+      tt.className = 'marker-tooltip';
+      tt.textContent = fmt(s.start);
+      marker.appendChild(tt);
+      if (e.cancelable) e.preventDefault();
+      e.stopPropagation();
+    };
+
+    marker.addEventListener('mousedown',  startDrag);
+    marker.addEventListener('touchstart', startDrag, { passive: false });
+
+    // Click marker → jump to that position
+    marker.addEventListener('click', ev => {
+      if (markerDrag.active) return;
+      stampAudio.currentTime = s.start;
+    });
+
+    wrap.appendChild(marker);
+  });
+}
+
 // Spacebar → stamp
 document.addEventListener('keydown', e => {
   const stampPanel = document.getElementById('panel-stamp');
@@ -277,6 +427,7 @@ document.getElementById('stamp-undo-btn').addEventListener('click', () => {
       state.sentences[state.currentStampIdx - 1].end = null;
     }
     renderStampList();
+    renderStampMarkers();
   }
 });
 
@@ -285,6 +436,7 @@ document.getElementById('stamp-reset-btn').addEventListener('click', () => {
   state.sentences.forEach(s => { s.start = null; s.end = null; });
   state.currentStampIdx = 0;
   renderStampList();
+  renderStampMarkers();
 });
 
 function doStamp() {
@@ -305,6 +457,7 @@ function doStamp() {
   }
 
   renderStampList();
+  renderStampMarkers();
 
   // Scroll current into view
   const list = document.getElementById('stamp-sentence-list');
@@ -317,7 +470,12 @@ stampAudio.addEventListener('ended', () => {
   if (last && last.start !== null && last.end === null) {
     last.end = stampAudio.duration;
     renderStampList();
+    renderStampMarkers();
   }
+});
+
+stampAudio.addEventListener('loadedmetadata', () => {
+  renderStampMarkers();
 });
 
 function renderStampList() {
@@ -381,7 +539,6 @@ function editTimestamp(i) {
   const n = parseFloat(val);
   if (!isNaN(n) && n >= 0) {
     state.sentences[i].start = n;
-    // If next sentence exists and its start is before this, adjust end
     if (i + 1 < state.sentences.length && state.sentences[i + 1].start !== null) {
       state.sentences[i].end = state.sentences[i + 1].start;
     }
@@ -389,6 +546,7 @@ function editTimestamp(i) {
       state.sentences[i - 1].end = n;
     }
     renderStampList();
+    renderStampMarkers();
   }
 }
 
